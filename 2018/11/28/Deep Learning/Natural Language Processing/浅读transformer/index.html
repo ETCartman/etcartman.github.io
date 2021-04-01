@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"etcartman.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="月初的时候打算做一个QA系统所以接触到了Attention机制，顺便也把这篇论文看了看期间参考过很多的很好的博客，最后也用Pytorch把Attention的代码实现了一遍，算是对Attention有了一个理解，由于大佬们的博客已经写的很好了，我这里就简单的做一个整理吧(懒)。  论文地址 代码地址  个人代码没有经过测试可能会有BUG">
+<meta property="og:type" content="article">
+<meta property="og:title" content="浅读Transformer">
+<meta property="og:url" content="http://etcartman.com/2018/11/28/Deep%20Learning/Natural%20Language%20Processing/%E6%B5%85%E8%AF%BBtransformer/index.html">
+<meta property="og:site_name" content="Jun&#39;s Blog">
+<meta property="og:description" content="月初的时候打算做一个QA系统所以接触到了Attention机制，顺便也把这篇论文看了看期间参考过很多的很好的博客，最后也用Pytorch把Attention的代码实现了一遍，算是对Attention有了一个理解，由于大佬们的博客已经写的很好了，我这里就简单的做一个整理吧(懒)。  论文地址 代码地址  个人代码没有经过测试可能会有BUG">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://etcartman.com/2018/11/28/Deep%20Learning/Natural%20Language%20Processing/%E6%B5%85%E8%AF%BBtransformer/transformer.png">
+<meta property="article:published_time" content="2018-11-28T02:04:45.000Z">
+<meta property="article:modified_time" content="2021-04-01T08:46:45.500Z">
+<meta property="article:author" content="hanjunliu">
+<meta property="article:tag" content="Transformer">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://etcartman.com/2018/11/28/Deep%20Learning/Natural%20Language%20Processing/%E6%B5%85%E8%AF%BBtransformer/transformer.png">
+
+<link rel="canonical" href="http://etcartman.com/2018/11/28/Deep%20Learning/Natural%20Language%20Processing/%E6%B5%85%E8%AF%BBtransformer/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-cn'
+  };
+</script>
+
+  <title>浅读Transformer | Jun's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Jun's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-cn">
+    <link itemprop="mainEntityOfPage" href="http://etcartman.com/2018/11/28/Deep%20Learning/Natural%20Language%20Processing/%E6%B5%85%E8%AF%BBtransformer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="hanjunliu">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jun's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          浅读Transformer
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2018-11-28 10:04:45" itemprop="dateCreated datePublished" datetime="2018-11-28T10:04:45+08:00">2018-11-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-04-01 16:46:45" itemprop="dateModified" datetime="2021-04-01T16:46:45+08:00">2021-04-01</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Natural-Language-Processing/" itemprop="url" rel="index"><span itemprop="name">Natural Language Processing</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>月初的时候打算做一个QA系统所以接触到了Attention机制，顺便也把这篇论文看了看期间参考过很多的很好的博客，最后也用Pytorch把Attention的代码实现了一遍，算是对Attention有了一个理解，由于大佬们的博客已经写的很好了，我这里就简单的做一个整理吧(懒)。</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1706.03762.pdf">论文地址</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/ETCartman/Transformer-Pytorch">代码地址</a></li>
+</ul>
+<p><strong><em>个人代码没有经过测试可能会有BUG</em></strong></p>
+<p> <img src="/2018/11/28/Deep%20Learning/Natural%20Language%20Processing/%E6%B5%85%E8%AF%BBtransformer/transformer.png" alt="网络结构" title=" 网络结构"><br> <a id="more"></a></p>
+<p>网络结构可以参考这篇[博客](<a target="_blank" rel="noopener" href="https://nlppupil.github.io/%E8%87%AA%E7%84%B6%E8%AF%AD%E8%A8%80%E5%A4%84%E7%90%86/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/2018/06/09/Attention-">https://nlppupil.github.io/%E8%87%AA%E7%84%B6%E8%AF%AD%E8%A8%80%E5%A4%84%E7%90%86/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/2018/06/09/Attention-</a><br>is-all-you-need-%E8%A7%A3%E8%AF%BB.html), 我这里就不要脸的复制啦！</p>
+<p> Attention 定义</p>
+<p>你所需要的只是注意力，那么注意力是什么呢？原文有一段精辟的定义，要深刻理解：</p>
+<blockquote>
+<p>An attention function can be described as mapping a query and a set of key-<br>value pairs to an output, where the query, keys, values, and output are all<br>vectors. The output is computed as a weighted sum of the values, where the<br>weight assigned to each value is computed by a compatibility function of the<br>query with the corresponding key.</p>
+</blockquote>
+<p>在传统NMT结构里，双向RNN编码器输出一个序列的向量<br>${h_1,h_2,…,h_t}$，解码器每次解码的时候，是解码器上一时刻的隐状态，一个序列的是，解码器每次解码的时候，query是解码器上一时刻的隐状态，一个序列的key-<br>value是 {(h_1,h_1),(h_2,h_2),…,(h_t,h_t)}，即和相同。跟每个做一个点乘得到分数，将分数用<br>，即key和value相同。query跟每个key做一个点乘得到分数，将分数用softmax$归一化得到权重，将权重跟value做加权和得到当前时刻的context。context作为解码器的RNN的当前时刻的输入进行更新。</p>
+<p> 模型组成</p>
+<p>把整个模型当做一个函数，该函数由若干个子函数的复合函数组成。解读流程就是从一开始的子函数说起，直到最后一个子函数的输出。</p>
+<p>模型输入：将每个词转成unique整数之后的原句，已经解码了的词序列（将每个词转成unique整数）。<br>模型输出：对译句所有词的概率分布。</p>
+<p> Encoder部分</p>
+<p> 子函数1：词向量矩阵和Positional Encoding</p>
+<p>输入：同模型输入  </p>
+<p>输出：输入的每个词转成一个$d_{model}维的向量，贯穿全篇维的向量，贯穿全篇 $p_{model} = 512$</p>
+<p>这个子函数分两步，第一步将每个词通过词向量矩阵转成一个d_{model}维的向量。这是普通词向量的常规做法。</p>
+<p>第二步，为每一个词做一个位置嵌入，这样之后的attention层（子函数）就可以感知每个词的位置。公式是：<br>$$<br>PE(pos,2i) = sin(pos/10000^{2i/d_{model}}) \<br>PE(pos,2i+1) = cos(pos/10000^{2i/d_{model}})<br>$$<br>其中， pos表示词的相对位置。比如原句有五个词，那么这五个词的位置嵌入就是<br>${PE(0),PE(1),PE(2),PE(3),PE(4)}$。。$PE(pos,i)$表示表示$PE(pos)$的第的第i维。让维。让i=0-255就可以得到就可以得到$PE(pos)$每个维度的数值，进而得到每个维度的数值，进而得到$PE(pos)$。</p>
+<p>将每个词的词嵌入和位置嵌入做一个向量加法，就得到了最终输出。</p>
+<p> 子函数2：一系列Scaled Dot-Product Attention</p>
+<p>子函数1的输出是两个矩阵，行数为词个数，列数为$d_{model}$。前一个矩阵是原句得到的，后一个是译句得到的。两个参数不同的子函数2分别作用于两个矩阵，这里只说encoder部分的子函数2。</p>
+<p>输入：$length \times d_{model}$ 的矩阵  </p>
+<p>输出：$length \times d_{v}$ 的矩阵</p>
+<p>Scaled Dot-Product Attention中scaled的含义是对常规注意力得到的向量乘以一个缩放系数(scaling<br>factor)。它的query是词的向量做一个 $W^Q \in \mathbb{R}^{d_{model} \times<br>d_k}$的线性变换，即将一个的线性变换，即将一个$d_{model}$维的行向量线性变换到一个维的行向量线性变换到一个d_k维的行向量，论文中维的行向量，论文中d_k<br>= 64。它的是为每个词的向量做一个。它的keys是为每个词的向量做一个$W^K \in \mathbb{R}^{d_{model} \times<br>d_k}$的线性变换得到一个 的线性变换得到一个d_k维的向量，即是一个序列的向量，一个维的向量，即keys是一个序列的向量，一个length \times<br>d_k的矩阵。它的是为每个词的向量做一个的矩阵。它的values是为每个词的向量做一个$W^V \in \mathbb{R}^{d_{model}<br>\times d_v}$的线性变换得到一个<br>的线性变换得到一个$d_v$维的向量，即是一个序列的向量，一个维的向量，即values是一个序列的向量，一个length \times<br>d_v的矩阵，这里的矩阵，这里$d_v = d_k$。<br>我们要为每一个词做一个Scaled Dot-Product<br>Attention得到这个词的attention向量，计算每个词的时候以这个词的向量的线性变换作为query，所有词的向量的线性变换作为keys和values，query和每个key做一个点积得到相应key的权重，将所有values做加权和得到当前词的attentio向量。因为是句子内部进行注意力权重分配，不像传统NMT结构那样需要外部query(decoder的隐状态)，所以叫self<br>attention。</p>
+<p>这个一系列对每个词做一个attention的子函数2可以用矩阵乘法一次性解决，不需要像RNN<br>encoder那样每次处理一个时间点，这就是parallelization的含义，将时间复杂度从O(n)缩小到 O(1) 。上段已经隐约表明Q = K =<br>V，是子函数1得到的原句的矩阵。子函数2的输出就是：<br>$$<br>Attention(QW^Q,KW^K,VW^V) = softmax(\frac{(QW^Q)(KW^K)^T}{\sqrt{d_k}})(VW^V)<br>$$<br>这就是论文中的式(1)，区别是式(1)中的Q在这里是QW^Q。(QW^Q)(KW^K)(记为weights)是length \times<br>length的矩阵，它的第i行表示计算第i个词的attention向量的时候每个词的向量的分数，然后对weights中的每一个数乘以缩放系数，再对每一行做一个softmax归一化，即softmax的对象是一个矩阵而不是向量，它对矩阵的每一行做归一化。$Attention(QW^Q,KW^K,VW^V)$的最终结果是一个$length<br>\times d_v$的矩阵，它的第i行表示第i个词的attention向量，在传统NMT语境下是context向量的意思。</p>
+<p> 子函数3：Multi-Head Attention</p>
+<p>Multi-Head Attention重点在Multi-<br>Head上，多头的意思是假设每个词有多个角度的信息，一次attention操作获得一个角度的信息。如果同时做h个attention操作，再将这些attention向量连接起来，那么就会得到更加饱满的信息，论文里h=8。</p>
+<p>也就是子函数2是子函数3的一部分，子函数3同时做h个子函数2，这样每个词就有h个attention向量，再将每个词的h个向量连接起来，做一个$W^O \in<br>\mathbb{R}^{d_{model} \times d_{model}}$的线性映射，就是每个词经过多头注意力后的结果。</p>
+<p>因此，8个64维的向量连接起来，所以子函数3的输出仍是一个length \times d_{model}的矩阵。</p>
+<p> 子函数4： Residual Connection + Layer Normalization</p>
+<p>encoder有6个相同的层，每个层又有两个子层。子函数2，3是第一个子层，记为sublayer1。sublayer1的输入是子函数1的输出，记为x，是一个$length<br>\times d_{model}$的矩阵。的输出是子函数的输出，也是的矩阵。sublayer1的输出是子函数3的输出，也是$length \times<br>d_{model}$的矩阵。子函数4的输出是：<br>LayerNorm(x + sublayer1(x))，也是一个$length \times d_{model}$的矩阵。</p>
+<p> 子函数5：Position-wise Feed-Forward Networks</p>
+<p>一个position对应一个词，一个词对应矩阵的一行，子函数5对矩阵的每一行做两个线性映射，中间加一个ReLU。</p>
+<p>输入：子函数4的输出  </p>
+<p>输出：相同形状的矩阵</p>
+<p>记输入矩阵的某行为x，则：<br>$$<br>FFN(X)= max(0,xW_1 + b_1)W_2 + b_2<br>$$<br>这是encoder每层的第二个子层，再做一个子函数4。子层1和2加在一起构成了encoder的一个层，六个这样的层构成了encoder。encoder的最终输出还是一个$length<br>\times d_{model}$的矩阵。</p>
+<p> Decoder部分</p>
+<p>decoder的第一个多头注意力跟encoder的多头注意力一样操作，第二个多头注意力的区别是Q变成第一个的多头注意力输出，K=V是encoder的输出。第二个注意力的作用跟传统NMT的attention作用一样，比较decoder当前向量跟原句哪个词相近，就更注意那个词。decoder的FFN跟encoder一样的操作。</p>
+<p>最后对decoder输出的矩阵的最后一行做一个线性变换和softmax，映射到词表的概率分布，就是模型最终的输出。</p>
+<p>之前说到模型输入的译句部分是已经解码过的词，实际操作中，训练时的输入其实是整个译句，不过在Scaled Dot-Product<br>Attention的时候给未解码的词加了一个负无穷的mask。翻译时不需要顾及未解码的词（因为不存在），所以不用加mask。</p>
+<p> 网络详解</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/47812375">[整理] 聊聊 Transformer</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Transformer/" rel="tag"># Transformer</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/10/07/Deep%20Learning/Computer%20Vision/xception%E8%AE%BA%E6%96%87/" rel="prev" title="Xception论文阅读笔记">
+      <i class="fa fa-chevron-left"></i> Xception论文阅读笔记
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/01/28/Deep%20Learning/Natural%20Language%20Processing/%E5%8F%AF%E8%A7%86%E5%8C%96seq2seq/" rel="next" title="可视化神经翻译模型(使用注意力机制的Seq2Seq模型结构)">
+      可视化神经翻译模型(使用注意力机制的Seq2Seq模型结构) <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">hanjunliu</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/etcartman" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;etcartman" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">hanjunliu</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

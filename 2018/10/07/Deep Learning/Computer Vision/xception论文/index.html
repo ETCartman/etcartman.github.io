@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"etcartman.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="论文下载 AbstractInception模块是位于普通卷积和深度可分卷积(DepthwiseSeparable)中间的一种操作，深度可分卷积可以理解成Inception模块的极端化，Xception在ImageNet上的表现略好于InceptionV3，但在一个更大的数据集上Xception表现的要比InceptionV3好的多，Xception和InceptionV3的参数量差不多所以说明X">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Xception论文阅读笔记">
+<meta property="og:url" content="http://etcartman.com/2018/10/07/Deep%20Learning/Computer%20Vision/xception%E8%AE%BA%E6%96%87/index.html">
+<meta property="og:site_name" content="Jun&#39;s Blog">
+<meta property="og:description" content="论文下载 AbstractInception模块是位于普通卷积和深度可分卷积(DepthwiseSeparable)中间的一种操作，深度可分卷积可以理解成Inception模块的极端化，Xception在ImageNet上的表现略好于InceptionV3，但在一个更大的数据集上Xception表现的要比InceptionV3好的多，Xception和InceptionV3的参数量差不多所以说明X">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2018-10-07T02:34:15.000Z">
+<meta property="article:modified_time" content="2019-02-01T02:19:53.464Z">
+<meta property="article:author" content="hanjunliu">
+<meta property="article:tag" content="xception">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://etcartman.com/2018/10/07/Deep%20Learning/Computer%20Vision/xception%E8%AE%BA%E6%96%87/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-cn'
+  };
+</script>
+
+  <title>Xception论文阅读笔记 | Jun's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Jun's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-cn">
+    <link itemprop="mainEntityOfPage" href="http://etcartman.com/2018/10/07/Deep%20Learning/Computer%20Vision/xception%E8%AE%BA%E6%96%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="hanjunliu">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jun's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Xception论文阅读笔记
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2018-10-07 10:34:15" itemprop="dateCreated datePublished" datetime="2018-10-07T10:34:15+08:00">2018-10-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2019-02-01 10:19:53" itemprop="dateModified" datetime="2019-02-01T10:19:53+08:00">2019-02-01</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Computer-Vision/" itemprop="url" rel="index"><span itemprop="name">Computer Vision</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1610.02357.pdf">论文下载</a></p>
+<h2 id="Abstract"><a href="#Abstract" class="headerlink" title="Abstract"></a>Abstract</h2><p>Inception模块是位于普通卷积和深度可分卷积(Depthwise<br>Separable)中间的一种操作，深度可分卷积可以理解成Inception模块的极端化，Xception在ImageNet上的表现略好于InceptionV3，但在一个更大的数据集上Xception表现的要比InceptionV3好的多，Xception和InceptionV3的参数量差不多所以说明Xception的提升并不是因为参数量的增加而是因为参数的使用率得到了提升。</p>
+<a id="more"></a>
+<h2 id="1-Introduction"><a href="#1-Introduction" class="headerlink" title="1. Introduction"></a>1. Introduction</h2><p>这些卷积模型从 ** <em>LeNet</em>** (用卷积来提取图像特征， MaxPooling来对空间信息进行下取样)到 ** <em>AlexNet</em>**<br>(卷积和池化交替进行，能够在每一个空间尺度提取充分的特征)然后到更深的 ** <em>VGG</em>** -&gt; ** <em>Inception(GoogLeNet)</em>**<br>-&gt; ** <em>V2</em>** -&gt; ** <em>V3</em>** -&gt; <strong>Inception-ResNet</strong> -&gt; ** <em>Xception</em>**</p>
+<p>Inception模型不再是像VGG模型那样的卷积和池化的简单堆叠而是由下图的Inception模块堆叠而成：</p>
+<p>![fig 1](/images/Deep Learning/Computer Vision/xception/fig1.png)</p>
+<p>Inception模型虽然使用较少的参数但是可以学习到非常多的表示(repersentation)，那么模型是怎么工作的？它跟普通卷积又有什么区别呢？Inception之后又该如何设计网络呢？</p>
+<h3 id="1-1-The-Inception-hypothesis"><a href="#1-1-The-Inception-hypothesis" class="headerlink" title="1.1 The Inception hypothesis"></a>1.1 The Inception hypothesis</h3><p>把图片分为两个空间维度(长，宽)和一个channel维度，卷集核的任务就是对跨通道的联系和空间的联系进行不断地映射，Inception背后的思想就是独立的查看跨通道的联系和空间的联系，假设跨通道的联系和空间的联系是充分可分离的最好不要同时进行映射。</p>
+<p>首先我们将Inception模块简化</p>
+<p>![fig2](/images/Deep Learning/Computer Vision/xception/fig2.png)</p>
+<p>然后再进行一波操作</p>
+<p>![fig3](/images/Deep Learning/Computer Vision/xception/fig3.png)</p>
+<p>观察之后我们就发现两个问题：怎么划分channel才合理呢？是不是好有比Inception假设更强的假设</p>
+<h3 id="1-2-The-continumm-between-convolutions-and-separable-convolutions"><a href="#1-2-The-continumm-between-convolutions-and-separable-convolutions" class="headerlink" title="1.2 The continumm between convolutions and separable convolutions"></a>1.2 The continumm between convolutions and separable convolutions</h3><p>再来一个极端版本</p>
+<p>![fig4](/images/Deep Learning/Computer Vision/xception/fig4.png)</p>
+<p>首先进行1x1的卷积来映射跨channel的联系然后将输出的每一个channel都进行3x3的卷积来映射跨空间的关系，这个极端的形式就差不多是depthwise<br>separable convolution了，但是与xception还是有所不同的。</p>
+<ul>
+<li><p>Xception</p>
+<ul>
+<li>先进行1x1卷积</li>
+<li>再对每个channel进行3x3卷积后 concat</li>
+<li>每个操作都跟着一个relu激活函数</li>
+</ul>
+</li>
+<li><p>depthwise separable convolution</p>
+<ul>
+<li>对每个channel进行3x3的卷积后 concat</li>
+<li>将concat进行1x1的卷积</li>
+<li>无激活函数</li>
+</ul>
+<h2 id="3-The-Xception-architecture"><a href="#3-The-Xception-architecture" class="headerlink" title="3. The Xception architecture"></a>3. The Xception architecture</h2></li>
+</ul>
+<p>![fig5](/images/Deep Learning/Computer Vision/xception/fig5.png)</p>
+<p>文章作者:<a href="/" title="访问 Hanjun Liu 的个人博客">Hanjun Liu</a></p>
+<p>最后更新:2018年10月07日 17:10:20</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/xception/" rel="tag"># xception</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/09/04/Competitions/%E4%B8%AD%E5%9B%BD%E8%BD%AF%E4%BB%B6%E6%9D%AF/" rel="prev" title="中国软件杯--南京游记">
+      <i class="fa fa-chevron-left"></i> 中国软件杯--南京游记
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/11/28/Deep%20Learning/Natural%20Language%20Processing/%E6%B5%85%E8%AF%BBtransformer/" rel="next" title="浅读Transformer">
+      浅读Transformer <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Abstract"><span class="nav-number">1.</span> <span class="nav-text">Abstract</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-Introduction"><span class="nav-number">2.</span> <span class="nav-text">1. Introduction</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-The-Inception-hypothesis"><span class="nav-number">2.1.</span> <span class="nav-text">1.1 The Inception hypothesis</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-The-continumm-between-convolutions-and-separable-convolutions"><span class="nav-number">2.2.</span> <span class="nav-text">1.2 The continumm between convolutions and separable convolutions</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-The-Xception-architecture"><span class="nav-number">3.</span> <span class="nav-text">3. The Xception architecture</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">hanjunliu</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/etcartman" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;etcartman" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">hanjunliu</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

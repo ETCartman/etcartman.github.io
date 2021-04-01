@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"etcartman.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文翻译自The Illustrated Transformer,外加自己的理解与想法。 个人感觉原文作者在介绍decoder部分时讲的并不是很清楚，不妨将文章多读几遍，最好还是能够结合代码能方便于理解。 在前一篇文章中介绍了注意力(Attention)—一种在现代深度学习中无处不在的方法。注意力有助于提高神经机器翻译应用的性能。在这篇文章中我们将学习**Transformer**—一种使用注意力">
+<meta property="og:type" content="article">
+<meta property="og:title" content="图解Transformer">
+<meta property="og:url" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/index.html">
+<meta property="og:site_name" content="Jun&#39;s Blog">
+<meta property="og:description" content="本文翻译自The Illustrated Transformer,外加自己的理解与想法。 个人感觉原文作者在介绍decoder部分时讲的并不是很清楚，不妨将文章多读几遍，最好还是能够结合代码能方便于理解。 在前一篇文章中介绍了注意力(Attention)—一种在现代深度学习中无处不在的方法。注意力有助于提高神经机器翻译应用的性能。在这篇文章中我们将学习**Transformer**—一种使用注意力">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/the_transformer_3.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/The_transformer_encoders_decoders.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/The_transformer_encoder_decoder_stack.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/Transformer_encoder.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/Transformer_decoder.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/embeddings.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/encoder_with_tensors.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/encoder_with_tensors_2.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_self-attention_visualization.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_self_attention_vectors.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_self_attention_score.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/self-attention_softmax.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/self-attention-output.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/self-attention-matrix-calculation.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/self-attention-matrix-calculation-2.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_attention_heads_qkv.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_attention_heads_z.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_attention_heads_weight_matrix_o.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_multi-headed_self-attention-recap.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_self-attention_visualization_3.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_positional_encoding_vectors.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_positional_encoding_example.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_positional_encoding_large_example.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_resideual_layer_norm.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_resideual_layer_norm_2.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_resideual_layer_norm_3.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_decoding_1.gif">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_decoding_2.gif">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_decoder_output_softmax.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/vocabulary.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/one-hot-vocabulary-example.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_logits_output_and_label.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/output_target_probability_distributions.png">
+<meta property="og:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/output_trained_model_probability_distributions.png">
+<meta property="article:published_time" content="2019-02-05T03:54:59.000Z">
+<meta property="article:modified_time" content="2021-04-01T08:48:26.174Z">
+<meta property="article:author" content="hanjunliu">
+<meta property="article:tag" content="Transformer">
+<meta property="article:tag" content="Attention">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/the_transformer_3.png">
+
+<link rel="canonical" href="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-cn'
+  };
+</script>
+
+  <title>图解Transformer | Jun's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Jun's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-cn">
+    <link itemprop="mainEntityOfPage" href="http://etcartman.com/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="hanjunliu">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jun's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          图解Transformer
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2019-02-05 11:54:59" itemprop="dateCreated datePublished" datetime="2019-02-05T11:54:59+08:00">2019-02-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-04-01 16:48:26" itemprop="dateModified" datetime="2021-04-01T16:48:26+08:00">2021-04-01</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Natural-Language-Processing/" itemprop="url" rel="index"><span itemprop="name">Natural Language Processing</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文翻译自<a target="_blank" rel="noopener" href="https://jalammar.github.io/illustrated-transformer/">The Illustrated Transformer</a>,外加自己的理解与想法。</p>
+<p>个人感觉原文作者在介绍decoder部分时讲的并不是很清楚，不妨将文章多读几遍，最好还是能够结合代码能方便于理解。</p>
+<p>在前一篇<a target="_blank" rel="noopener" href="http://jun369.me/2019/01/28/Deep%20Learning/Natural%20Language%20Processing/%E5%8F%AF%E8%A7%86%E5%8C%96seq2seq/">文章</a>中介绍了注意力(Attention)—一种在现代深度学习中无处不在的方法。注意力有助于提高神经机器翻译应用的性能。在这篇文章中我们将学习**<em>Transformer**</em>—一种使用注意力来提高训练速度的模型。Transformer在某些特定的任务中优于Google的神经机器翻译模型(Neural Machine Translation model), 然而Transformer最大的优点来自于他对并行化的贡献，Google也建议使用Transformer作为参考模型来使用他们的 <a target="_blank" rel="noopener" href="https://cloud.google.com/tpu/">Cloud TPU</a>。那么就让我们拆开Transformer，看看它是如何工作的吧。</p>
+<a id="more"></a>
+
+<p>Transformer在 <a target="_blank" rel="noopener" href="https://arxiv.org/abs/1706.03762">Attention is All You Need</a>这篇论文中被提出，Tensorflow版本的Transformer也包含在<a target="_blank" rel="noopener" href="https://github.com/tensorflow/tensor2tensor">Tensor2Tensor</a>中, 哈佛大学自然语言处理小组也写了篇<a target="_blank" rel="noopener" href="http://nlp.seas.harvard.edu/2018/04/03/attention.html">使用Pytorch来实现和解释Transformer</a>. 在这篇文章中我将一些事情简化并一点一点的介绍Transformer的概念以便于让那些基础较薄弱的读者能够理解。</p>
+<h2 id="模型的高层实现"><a href="#模型的高层实现" class="headerlink" title="模型的高层实现"></a>模型的高层实现</h2><p>我们先将模型看成一个黑盒，在机器翻译应用中我们向黑盒中输入一种语言的句子，黑盒会输出另一种语言的句子。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/the_transformer_3.png"></p>
+<p>将Transformer解开一层以后，我们可以看见Transformer由编码器组件(encoding component)和解码器组件(decoding component)构成，编码器组件与解码器组件相连。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/The_transformer_encoders_decoders.png"></p>
+<p>编码器组件就是由一堆的编码器构成(论文中说编码器组件由六个编码器组成，六也没有什么特殊的含义，你可以根据实验调整这个数字)，同样的解码器组件也是由一堆解码器构成的。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/The_transformer_encoder_decoder_stack.png"></p>
+<p>编码器的结构都是相同的，但是每个编码器都有自己的参数且并不共享，每一个编码器都可以解成下图的两个子部分:</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/Transformer_encoder.png"></p>
+<p>编码器的输入首先经过自注意力层(self-attention layer )，这个自注意力层能够让编码器编码句子中某个单词时能够”注意”到句子中的其他单词，自注意力层的细节稍后再讲解。</p>
+<p>自注意力层的输出送给一个前馈神经网络(feed-forward neural network),  这个前馈神经网络在每一个编码器中的结构都是完全相同的。</p>
+<p>解码器同样拥有这两个层，但是在这两个层之间多了一个编码-解码注意力层(Encoder-Decoder Attention), 这个层使得解码器可以专注于在输入句子中相关的部分(跟<a target="_blank" rel="noopener" href="http://jun369.me/2019/01/28/Deep%20Learning/Natural%20Language%20Processing/%E5%8F%AF%E8%A7%86%E5%8C%96seq2seq/">Seq2seq</a>模型中的注意力是一个作用)。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/Transformer_decoder.png"></p>
+<h2 id="模型的运行"><a href="#模型的运行" class="headerlink" title="模型的运行"></a>模型的运行</h2><p>我们已经学习了模型的主要组成部分，现在让我们看一下各种向量/张量，看看它们是怎么输入到Transformer中并得到输出的。</p>
+<p>与一般的NLP应用一样我们现将输入的单词用<a target="_blank" rel="noopener" href="https://medium.com/deeper-learning/glossary-of-deep-learning-word-embedding-f90c3cec34ca">word embedding</a>算法转换成一个向量。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/embeddings.png" title="每个单词被转换成一个512维的向量，我们使用简单的方块来表示这些向量"></p>
+<p>这种嵌入(embedding)仅存在于编码器的最底层，每一个编码器都获得到一组512维的向量，在最底层的编码器这组向量就是word embedding，在其余的编码器中这组向量上一个编码器的输出, 一共有多少组向量呢？这是一个超参数，一般来时它等于要输入的最长的那个句子的长度。</p>
+<p>在将单词转换成向量后，每一个向量就通过编码器的两层:</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/encoder_with_tensors.png"></p>
+<p>这里我们要学习Transformer中的关键属性：在编码器中句子的每一个单词都有自己的路径，在自注意力层的这些路径存在依赖关系，但在前馈神经网络中这些路径不存在依赖关系，因此可以在流经前馈神经网络时各个路径能够并行操作。</p>
+<p>接下来，我们将示例切换为更短的句子，我们将查看编码器的每个子层中究竟发生了什么。</p>
+<h2 id="进入编码器"><a href="#进入编码器" class="headerlink" title="进入编码器"></a>进入编码器</h2><p>正如我们之前提到的，一个编码器接受一组向量作为输入，编码器将这组向量送入自注意力层，再将自注意力层的输出送进前馈神经网络，最后将前馈神经网络的输出送进下一个编码器。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/encoder_with_tensors_2.png" title="这里的前馈神经网络是完全相同的，只是为了理解方便所以画了两个"></p>
+<h2 id="自注意力的高层实现"><a href="#自注意力的高层实现" class="headerlink" title="自注意力的高层实现"></a>自注意力的高层实现</h2><p>虽然”自注意力”这个词我说了很多遍搞得好像这是一个人尽皆知的概念，但其实并不是这样，我是读了Attention is all You need这篇论文才知道这个概念，让我们看一看自注意力是怎么工作的吧！</p>
+<p>假设以下句子是我们要翻译句子：</p>
+<p><em>The animal didn’t cross the street because it was too tired</em></p>
+<p>这句话中的’it’指的是啥呢？指的是‘street’还是’animal’? 这个问题对人来说非常简单，但是对于机器来说就不是那么容易了。</p>
+<p>当模型在处理”it”时，自注意力就赋予模型模型将“it”与“animal”相联系的能力。</p>
+<p>当模型在处理每一个单词时， 自注意力允许模型查看句子中的其他单词然后对这个单词进行更好的编码。</p>
+<p>如果你很熟悉循环神经网络, 想象一下循环神经网络是如何通过隐藏状态将它以前处理过的单词/向量与当前处理过的单词/向量的相结合。自注意力是Transformer用来将其他相关单词的“理解”放入我们正在处理的单词中。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_self-attention_visualization.png" title="当我们用第五个编码器(最上面的一个编码器)对it进行编码，我们发现it注意的是The animal，The animal将它的表示融入到it中"></p>
+<p>你可以用一下 <a target="_blank" rel="noopener" href="https://colab.research.google.com/github/tensorflow/tensor2tensor/blob/master/tensor2tensor/notebooks/hello_t2t.ipynb">Tensor2Tensor notebook</a> ,你可以在其中加载Transformer模型，并使用此交互式可视化对其进行检查。</p>
+<h2 id="自注意力的细节"><a href="#自注意力的细节" class="headerlink" title="自注意力的细节"></a>自注意力的细节</h2><p>让我们首先看看如何用向量计算自注意力，然后看看如何用矩阵实现它。</p>
+<p>计算自注意力的<strong>第一步</strong>就是要用每一个要输入到编码器的向量(每一个单词embedding后的向量)创建三个向量，也就是对于每个单词我们创建一个Query向量，一个Key向量和一个Value向量, 这三个向量是用单词向量和三个矩阵相乘得到的，这三个矩阵是我们要训练的参数。</p>
+<p>注意到生成这三个向量的维度(64维)比单词向量的维度(512维)要小，但是多头(multiheaded)处理之后维度又恢复到512维，后面会介绍多头这一概念。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_self_attention_vectors.png" title="将X1与WQ相乘得到query，query与这个单词相关，我们最终会从用每一个单词通过矩阵相乘得到一个query，一个key和一个value"></p>
+<p>query， key，value又是啥？</p>
+<p>它们是对计算和思考注意力有用的抽象。请继续阅读下面的注意力计算方法，就可以理解这些向量所担任的角色。</p>
+<p>计算自注意力的<strong>第二步</strong>就是要计算出一个分数。比如我们要计算第一个词”Thinking”的自注意力，我们需要根据这个词对输入句子的每个单词进行评分。当我们在某个位置编码一个单词时，分数决定了这个单词要在输入句子的其他单词上集中多少注意力。</p>
+<p>这个分数是由这个单词的query向量和所有单词的key向量点乘的得到的，所以当我们处理第一个单词时第一个分数就是q1点乘k1，第二个分数就是q1点乘k2。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_self_attention_score.png"></p>
+<p><strong>第三步</strong>就是把分数除以8(key向量维度的平方根，目的是为了让梯度更稳定一些，具体来说就是防止值太大导致softmax函数处于近似水平状态，影响梯度下降，当然你也可以用其他值)，<strong>第四步</strong>就是再把分数送入到softmax，softmax将分数标准化(经过softmax所有值加起来和为1)。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/self-attention_softmax.png"></p>
+<p>Softmax后分数决定了每个单词在这个位置上的表达量。很显然在这个单词自己拥有最高的softmax分数，但有时能够注意与当前单词相关的另一个单词，这是非常有用的。</p>
+<p><strong>第五步</strong>是将每一个value向量都乘以对应的softmax分数，这一步从直觉上来看就是要保持相关单词的值并减少不相关单词的值。</p>
+<p><strong>第六步</strong>是对加权后的value求和(Z1 = V1 + V2)，然后就计算出第一个单词在句子中的自注意力。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/self-attention-output.png"></p>
+<p>这就是自注意力的计算过程。最终的向量就是我们要送到前馈网络的向量，然而在实际的应用中都是用矩阵来计算的而不是向量，因为矩阵可以更快所以然我们看看用矩阵是怎么做计算的。</p>
+<h2 id="自注意力的矩阵运算"><a href="#自注意力的矩阵运算" class="headerlink" title="自注意力的矩阵运算"></a>自注意力的矩阵运算</h2><p><strong>第一步</strong>是要计算Query，Key和Value矩阵，我们把词向量打包成一个向量X, 然后与我们要训练的权重矩阵相乘(WQ, WK, WV)。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/self-attention-matrix-calculation.png" title="X中的每一行代表句子中的每一个单词"></p>
+<p>最后，我们要处理这些矩阵，我们可以将六步合成一步，直接使用一个公式来计算自注意力层的输出。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/self-attention-matrix-calculation-2.png" title="矩阵形式的自注意计算"></p>
+<h2 id="多头野兽"><a href="#多头野兽" class="headerlink" title="多头野兽"></a>多头野兽</h2><p>这篇论文通过引入多头注意力( “multi-headed” attention)机制更加细化或是说完善了了自注意力层，这可以从两个方面提高性能：</p>
+<p>1.它提高了模型注意不同位置的能力，上面的例子Z1它只包含一点点其他单词的信息，但是这个单词本身却可能处于支配地位，如果我们翻译像是”The animal didn’t cross the street because it was too tired”这样一句话，要是知道“it”指的是什么就好了。</p>
+<p>2.它赋予注意力层许多的表征子空间，正如我们下面将要看到的，使用了多头注意力我们就会有很多组Query/Key/Value矩阵(Transformer有八个头，所以每个编码器/解码器会有八组Query/Key/Value矩阵)，每一组矩阵都是随机初始化的，经过训练之后这八组矩阵可以讲输入词向量转成八种不同的表征。</p>
+<p>综合这两条来说就是，多头注意力能够找到一个单词在空间中的不同表示，进而在编码这个单词的时候能够注意到更多有用的其他单词。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_attention_heads_qkv.png"></p>
+<p>我们做八次不同的计算，就能得到八个Z矩阵。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_attention_heads_z.png"></p>
+<p>这八个矩阵非常棘手因为前馈神经网络一次只能处理一个矩阵，所以我们要将这八个矩阵压缩成一个矩阵。</p>
+<p>怎么做呢？我们先将这些矩阵连接起来然后把它乘以矩阵W0</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_attention_heads_weight_matrix_o.png"></p>
+<p>多头注意力差不多讲完了，我知道各种矩阵可能让你眼花缭乱，我把它们放在一张图里，这样就能看的清了。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_multi-headed_self-attention-recap.png"></p>
+<p>让我们重新回顾一下以前的例子，看看在我们的示例句中，当我们编码“it”这个词时，两个注意力头的注意力集中在哪里：</p>
+<p>![](图解Transformer/transformer_self-attention_visualization_2.png “当我们编码”it”的时候，一个注意力头注意的是animal，另一个注意的是tire，模型对”it”生成的表征包含了”animal”和”tire”的表征”，图中有八个彩色块每一块就代表一个头，一共有八个头)</p>
+<p>如果我们看所有注意力头的注意力，额，事情就变得难已解释了。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_self-attention_visualization_3.png"></p>
+<h2 id="使用位置编码表示序列的顺序"><a href="#使用位置编码表示序列的顺序" class="headerlink" title="使用位置编码表示序列的顺序"></a>使用位置编码表示序列的顺序</h2><p>到目前为止我们还有一样东西没有介绍那就是模型如何了解寻列序中单词的顺序。</p>
+<p>为了解决这个问题Transformer在每一个输入向量上加上一个向量，这些向量遵循模型学习的特定模式，这有助于确定每个单词的位置，或者序列中不同单词之间的距离。将这些值添加到嵌入向量中，一旦嵌入向量被投影到q/k/v向量中，以及在点乘注意力期间，就可以在嵌入向量之间提供有意义的距离。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_positional_encoding_vectors.png" title="为了使模型能够理解单词的顺序，我们添加了位置编码向量。编码向量的值遵循一种特定模式"></p>
+<p>如果我们假定嵌入向量的维度为4，那么实际的位置编码如下所示:</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_positional_encoding_example.png"></p>
+<p>这个特定的模式是什么样子呢？</p>
+<p>在下图中，每一行对应于向量的位置编码。所以第一行就是我们要与输入序列中第一个单词嵌入向量相加的向量。每一行有512个值，每个值都在-1和1之间，我们将其可视化展示:</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_positional_encoding_large_example.png" title="你可以看到它看起来像是从中心向下一分为二。这是因为左半部分的值由一个函数(使用正弦)生成，右半部分由另一个函数(使用余弦)生成。然后将它们连接起来形成每个位置编码向量。"></p>
+<p>在论文中的3.5节给出了生成编码向量的公式，具体的代码实现在<a target="_blank" rel="noopener" href="https://github.com/tensorflow/tensor2tensor/blob/23bd23b9830059fbc349381b70d9429b5c40a139/tensor2tensor/layers/common_attention.py"><code>get_timing_signal_1d()</code></a>中给出，这不是位置编码的唯一可能方法。但是，它的优点是能够根据看不见的序列长度进行缩放，换句话说就是对任意长的句子我都能进行位置编码（例如，如果我们的训练模型被要求翻译的句子比我们训练集中的任何句子都长）。</p>
+<h2 id="残差网络"><a href="#残差网络" class="headerlink" title="残差网络"></a>残差网络</h2><p>在继续之前，我们需要提到的编码器体系结构中的一个细节，每个编码器中的每个子层（self-attention，ffnn）都有一个残差连接，然后是一个层规范化(<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1607.06450">layer-normalization</a>)步骤。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_resideual_layer_norm.png"></p>
+<p>将其可视化的展示出来:</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_resideual_layer_norm_2.png"></p>
+<p>解码器中的子层同样如此，让我们画一个有两个编码器和两个解码器的Transformer:</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_resideual_layer_norm_3.png"></p>
+<h2 id="进入解码器"><a href="#进入解码器" class="headerlink" title="进入解码器"></a>进入解码器</h2><p>在我们已经介绍了编码器方面的大部分概念，我们基本上也知道解码器的组件是如何工作的。但让我们看看他们是如何合作的。</p>
+<p>编码器通过处理输入序列启动。然后将顶部编码器的输出转换为一组注意向量K和V。每个解码器将在其“编码器-解码器-注意”层( “encoder-decoder attention” layer)中使用这些注意向量，这有助于解码器将注意力集中在输入序列中的适当位置：</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_decoding_1.gif" title="当编码阶段结束后，解码阶段就开始启动。每一个时间步解码阶段输出一个单词(图中的例子是英语翻译)"></p>
+<p>以下步骤重复此过程，直到达到表示Transformer解码器完成输出的特殊符号出现。每一步的输出在下一个时间步又被送入底部解码器，就像我们对编码器输入所做的那样，我们将位置编码嵌入并添加到这些解码器输入中，以指示每个字的位置。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_decoding_2.gif"></p>
+<p>解码器中的自注意力层的工作方式与编码器中的稍有不同:</p>
+<p>在解码器中自注意力层仅允许观察输出序列的早些位置, 这是通过在softmax之前掩盖未来位置来实现的(设置成=inf)。</p>
+<p>“编码器-解码器-注意”层的工作方式与多头自注意类似，只是它从下面的层创建Query矩阵，并从编码器堆栈的输出中获取键和值矩阵。</p>
+<h2 id="最后一层-Linear-and-Softmax-layer"><a href="#最后一层-Linear-and-Softmax-layer" class="headerlink" title="最后一层: Linear and Softmax layer"></a>最后一层: Linear and Softmax layer</h2><p>解码器输出一个浮点型的向量，我们该怎么把它转换成一个单词？这就是最后一层网络的工作啦！</p>
+<p>线性层就是全连接神经网络将解码器产生的向量投射到一个更大的向量（称为逻辑向量）中的网络。</p>
+<p>假设模型的从训练数据中学习到的输出词汇一共有10,000个，那么就使逻辑向量有10,000维，每一个维度都代表了一个单词的分数。</p>
+<p>然后softmax层将分数转换成概率(都是正数且和为1)，拥有最大值的那个维度被选中将这个维度对应的单词输出。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_decoder_output_softmax.png" title="从底部开始，产生的向量作为解码器的输出。然后它被转换成一个输出单词。"></p>
+<h2 id="训练要点"><a href="#训练要点" class="headerlink" title="训练要点"></a>训练要点</h2><p>现在我们已经学习了整个Transformer的前向传播过程，这对我们学习训练过程也相当有帮助。</p>
+<p>在训练时模型遵循同样的前向传播，我们将它的输出与正确输出作对比。</p>
+<p>为了可视化的展示，让我们假设我们的输出词汇仅包含六个单词(“a”, “am”, “i”, “thanks”, “student”, and “<eos>” ( ‘end of sentence’的缩写))。</eos></p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/vocabulary.png" title="我们模型的输出词汇表是在我们开始训练之前的预处理阶段创建的。"></p>
+<p>一旦我们定义了输出词汇表，我们就可以使用相同宽度的向量来表示词汇表中的每个单词。这也被称为独热编码。例如，我们可以用下面的向量来表示“am”这个词：</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/one-hot-vocabulary-example.png"></p>
+<p>下面，让我们来讨论一下模型的损失函数——我在训阶段优化的度量标准，以得到一个经过训练的非常精确的模型。</p>
+<h2 id="损失函数"><a href="#损失函数" class="headerlink" title="损失函数"></a>损失函数</h2><p>假设我们正在训练我们的模型。假设这是我们在训练阶段的第一步，我们正在用一个简单的例子来训练它——将“meric”翻译成“thanks”。</p>
+<p>这意味着，我们希望输出是表示“谢谢”一词的概率分布。但由于这种模式还没有经过训练，这还不太可能发生。</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/transformer_logits_output_and_label.png" title="将输出与正确输出作对比使用梯度下降让输出更接近正确输出"></p>
+<p>两个概率分布如何比较？我们把两者相减就可以了，具体的细节<a target="_blank" rel="noopener" href="https://colah.github.io/posts/2015-09-Visual-Information/">cross-entropy</a> 和 <a target="_blank" rel="noopener" href="https://www.countbayesie.com/blog/2017/5/9/kullback-leibler-divergence-explained">Kullback–Leibler divergence</a>这两篇文章查看。</p>
+<p>但是注意我们这里用的是一个过度简单的例子，说的更具体些我们需要输出一个句子而不是一个单词，所以我们需要模型依次输出概率分布:</p>
+<ul>
+<li>每一个概率分布的宽度都是vocab_size(在我们的例子中是6，真实情况可能是10,000或3,000)</li>
+<li>第一个概率分布最大值与单词”i”对应</li>
+<li>第二个概率分布最大值与单词”am”对应</li>
+<li>以此类推最后一个概率分布最大值与单词”<eos>“对应</eos></li>
+</ul>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/output_target_probability_distributions.png"></p>
+<p>在足够大的数据集上训练之后我们希望我们的模型可以达到下图的效果:</p>
+<p><img src="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/output_trained_model_probability_distributions.png"></p>
+<p>现在，因为模型一次生成一个输出，所以我们可以假设模型从概率分布中选择概率最高的单词，然后丢弃其余的单词。这是一种方法（称为贪婪解码）。另一种方法是抓住前两个词（例如“i”和“me”），然后在下一步中运行模型两次：一次假设第一个输出位置是“i”，另一次假设第一个输出位置是“me”，考虑位置1和2产生的误差较小的留下。我们对位置2和3…等重复此操作。此方法称为“波束搜索”(beam search)，在我们的示例中，波束大小为2（因为我们在计算位置1和2的波束后比较了结果），并且顶波束也是2（因为我们保留了两个单词）。这两个都是你可以实验的超参数。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Transformer/" rel="tag"># Transformer</a>
+              <a href="/tags/Attention/" rel="tag"># Attention</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/01/28/Deep%20Learning/Natural%20Language%20Processing/%E5%8F%AF%E8%A7%86%E5%8C%96seq2seq/" rel="prev" title="可视化神经翻译模型(使用注意力机制的Seq2Seq模型结构)">
+      <i class="fa fa-chevron-left"></i> 可视化神经翻译模型(使用注意力机制的Seq2Seq模型结构)
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/04/05/Deep%20Learning/Machine%20Learning%20Course/Adversarial-Attack/" rel="next" title="深度学习中的对抗攻击(Adversarial Attack)">
+      深度学习中的对抗攻击(Adversarial Attack) <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E7%9A%84%E9%AB%98%E5%B1%82%E5%AE%9E%E7%8E%B0"><span class="nav-number">1.</span> <span class="nav-text">模型的高层实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E7%9A%84%E8%BF%90%E8%A1%8C"><span class="nav-number">2.</span> <span class="nav-text">模型的运行</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%9B%E5%85%A5%E7%BC%96%E7%A0%81%E5%99%A8"><span class="nav-number">3.</span> <span class="nav-text">进入编码器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%87%AA%E6%B3%A8%E6%84%8F%E5%8A%9B%E7%9A%84%E9%AB%98%E5%B1%82%E5%AE%9E%E7%8E%B0"><span class="nav-number">4.</span> <span class="nav-text">自注意力的高层实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%87%AA%E6%B3%A8%E6%84%8F%E5%8A%9B%E7%9A%84%E7%BB%86%E8%8A%82"><span class="nav-number">5.</span> <span class="nav-text">自注意力的细节</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%87%AA%E6%B3%A8%E6%84%8F%E5%8A%9B%E7%9A%84%E7%9F%A9%E9%98%B5%E8%BF%90%E7%AE%97"><span class="nav-number">6.</span> <span class="nav-text">自注意力的矩阵运算</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%9A%E5%A4%B4%E9%87%8E%E5%85%BD"><span class="nav-number">7.</span> <span class="nav-text">多头野兽</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E4%BD%8D%E7%BD%AE%E7%BC%96%E7%A0%81%E8%A1%A8%E7%A4%BA%E5%BA%8F%E5%88%97%E7%9A%84%E9%A1%BA%E5%BA%8F"><span class="nav-number">8.</span> <span class="nav-text">使用位置编码表示序列的顺序</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%AE%8B%E5%B7%AE%E7%BD%91%E7%BB%9C"><span class="nav-number">9.</span> <span class="nav-text">残差网络</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%9B%E5%85%A5%E8%A7%A3%E7%A0%81%E5%99%A8"><span class="nav-number">10.</span> <span class="nav-text">进入解码器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%80%E5%90%8E%E4%B8%80%E5%B1%82-Linear-and-Softmax-layer"><span class="nav-number">11.</span> <span class="nav-text">最后一层: Linear and Softmax layer</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%AD%E7%BB%83%E8%A6%81%E7%82%B9"><span class="nav-number">12.</span> <span class="nav-text">训练要点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0"><span class="nav-number">13.</span> <span class="nav-text">损失函数</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">hanjunliu</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/etcartman" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;etcartman" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">hanjunliu</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

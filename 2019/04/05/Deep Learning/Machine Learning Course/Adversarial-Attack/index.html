@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"etcartman.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Motivation当你训练了一个效果非常好深度学习模型之后肯定想马上把它投入使用，但在现实环境下光是效果好还是不够的，模型需要应对来自黑客的恶意攻击。 AttackWhat do we want do？那么黑客是如何攻击机器学习模型的？假设我们有一个已经使用ImageNet数据集训练好的一个模型，给它看一张小虎斑猫的图片，它会识别出这是一只小虎斑猫。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="深度学习中的对抗攻击(Adversarial Attack)">
+<meta property="og:url" content="http://etcartman.com/2019/04/05/Deep%20Learning/Machine%20Learning%20Course/Adversarial-Attack/index.html">
+<meta property="og:site_name" content="Jun&#39;s Blog">
+<meta property="og:description" content="Motivation当你训练了一个效果非常好深度学习模型之后肯定想马上把它投入使用，但在现实环境下光是效果好还是不够的，模型需要应对来自黑客的恶意攻击。 AttackWhat do we want do？那么黑客是如何攻击机器学习模型的？假设我们有一个已经使用ImageNet数据集训练好的一个模型，给它看一张小虎斑猫的图片，它会识别出这是一只小虎斑猫。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/imagenet.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/l2-infty.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/gd1.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/qd.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/gd2.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/fix.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/ex-l2.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/ex-l22.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/example.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/noise.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/random_noise.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/wh1.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/wh2.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/approach.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/fgsm.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/fgsm1.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/ba.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/uaa.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/are.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/real1.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/real2.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/real3.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/pd.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/fq.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/rip.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/pp.png">
+<meta property="article:published_time" content="2019-04-05T00:26:38.000Z">
+<meta property="article:modified_time" content="2019-04-07T00:49:06.319Z">
+<meta property="article:author" content="hanjunliu">
+<meta property="article:tag" content="Adversarial Attack">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/imagenet.png">
+
+<link rel="canonical" href="http://etcartman.com/2019/04/05/Deep%20Learning/Machine%20Learning%20Course/Adversarial-Attack/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-cn'
+  };
+</script>
+
+  <title>深度学习中的对抗攻击(Adversarial Attack) | Jun's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Jun's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-cn">
+    <link itemprop="mainEntityOfPage" href="http://etcartman.com/2019/04/05/Deep%20Learning/Machine%20Learning%20Course/Adversarial-Attack/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="hanjunliu">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jun's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          深度学习中的对抗攻击(Adversarial Attack)
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2019-04-05 08:26:38" itemprop="dateCreated datePublished" datetime="2019-04-05T08:26:38+08:00">2019-04-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2019-04-07 08:49:06" itemprop="dateModified" datetime="2019-04-07T08:49:06+08:00">2019-04-07</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Machine-Learning-Course/" itemprop="url" rel="index"><span itemprop="name">Machine Learning Course</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="Motivation"><a href="#Motivation" class="headerlink" title="Motivation"></a>Motivation</h2><p>当你训练了一个效果非常好深度学习模型之后肯定想马上把它投入使用，但在现实环境下光是效果好还是不够的，模型需要应对来自黑客的恶意攻击。</p>
+<h2 id="Attack"><a href="#Attack" class="headerlink" title="Attack"></a>Attack</h2><h3 id="What-do-we-want-do？"><a href="#What-do-we-want-do？" class="headerlink" title="What do we want do？"></a>What do we want do？</h3><p>那么黑客是如何攻击机器学习模型的？假设我们有一个已经使用ImageNet数据集训练好的一个模型，给它看一张小虎斑猫的图片，它会识别出这是一只小虎斑猫。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/imagenet.png"></p>
+<a id="more"></a>
+
+
+<p>我们假设输入的图片是$ x^0 $，我们把图片加上一个特殊的噪音$ \Delta x $(不是随机产生的), 结果发现模型产生了错误的预测结果。</p>
+<p>![](<a target="_blank" rel="noopener" href="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/attack">https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/attack</a> image.png)</p>
+<h3 id="Loss-function-for-Attack"><a href="#Loss-function-for-Attack" class="headerlink" title="Loss function for Attack"></a>Loss function for Attack</h3><p>那么这个特殊的噪音应该如何计算呢？首先让我们回忆一下神经网络训练过程。</p>
+<p>神经网络就是一个函数$f$完成图片$ x^0 $到标签$y$的映射，我们需要找到神经网络函数的一组参数$\theta$构成函数$ f_{\theta} $, 使得$f_{\theta}(x^0)$产生的结果与真实结果越接近越好。</p>
+<p>![](<a target="_blank" rel="noopener" href="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/train">https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/train</a> model.png)</p>
+<p>我们还需要一种方法来衡量神经网络的输出标签与真实标签究竟差了多少，在分类任务通常使用交叉熵来衡量神经网络输出标签$y^0$与真实标签$y^{true}$之间的差距， 所以我们构建$Loss$函数，该函数的得到的是二者的交叉熵值，我们希望神经网络找到的$ \theta $让loss越小越好 。<br>$$<br>Loss(\theta) =  C(y^{0},  y^{true})<br>$$</p>
+<p>$$<br>f^{*} = arg \min\limits_{\theta}Loss(\theta)<br>$$</p>
+<p>简单强调一下，训练的时候$ \theta $是我们要通过反向传播算法不断训练的值，图片$ x^0 $肯定是固定不变的。</p>
+<p>理解了网络的训练过程，就可以很轻松的理解网络是如何被攻击的，攻击分为两种，一种是无目标的攻击(<strong><em>Non-targeted  Attack</em></strong>), 另一种是有目标的攻击(<strong><em>Targeted Attack</em></strong>).</p>
+<p>我们首先聊一聊Non-targeted Attack，简单来说就是我给图片加个噪音让你的模型无法正确识别就可以了，至于你的模型把照片识别成什么我并不关心。实现起来非常简单，在神经网络的训练中我们固定照片$x^0$更新参数$\theta$, 而在攻击中只需要固定参数$\theta$,  更新噪音$\Delta x $，得到新的图片$ x’ = x^0 + \Delta x$,让神经网络预测$ x’ $输出标签与正确标签差的越来越远就可以了(二者交叉熵越大越好)。<br>$$<br>Loss(x^{‘}) =  -C(y^{0},  y^{true})<br>$$<br>再谈一下Targeted Attack，概念和实现也比较简单，我希望添加噪音的照片可以被识别成某一个确定的类，所以就在Loss函数中添加一项$ C(y^{0},  y^{false}) 即可​$。<br>$$<br>Loss(x^{‘}) =  -C(y^{0},  y^{true}) + C(y^{0},  y^{false})<br>$$<br>不管是Targeted Attack还是Non-targeted Attack都有一个重要的约束条件，这个约束条件就是加了噪音的图片和原图片不能差太多(二者的差距要小于某个值$ \epsilon$)，我们也许根本看不出两张图片的差别。<br>$$<br>d(X^{0}, X^{‘}) \leq \epsilon<br>$$</p>
+<h3 id="Constraint"><a href="#Constraint" class="headerlink" title="Constraint"></a>Constraint</h3><p>我们通常用两种方法来计算两张图片之间的距离，</p>
+<p>一种是$L2-norm​$:<br>$$<br>d(X^{0}, X^{‘}) = {||X^{0} - X^{‘}||}_{2} = (\Delta x_1)^2 + (\Delta x_2)^2 + (\Delta x_3)^2+ …<br>$$<br>另一种$L- \infty​$:<br>$$<br>d(X^{0}, X^{‘}) = {||X^{0} - X^{‘}||}_{\infty} = max { \Delta x_1, \Delta x_2, \Delta x_3， … }<br>$$<br>在图片攻击中我们通常使用$L-\infty$,原因是我们希望我们找到的噪音要分散到整张图片而不是只集中在几个像素点上，这两种情况用$L2-norm$计算出的距离值可能是一样的， 而用$L- \infty$计算出的分散的距离值要比集中的距离值小。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/l2-infty.png"></p>
+<h3 id="How-to-attack"><a href="#How-to-attack" class="headerlink" title="How to attack?"></a>How to attack?</h3><p>这是完整的方程，在满足d的条件下，找到$ X^* $使Loss值最小</p>
+<p>$$<br>X^{*} = arg\min\limits_{d(X^{0}, X^{‘}) \leq \epsilon} Loss(X^{‘})<br>$$</p>
+<p>我们现在先不管条件d， 只考虑$X^* = arg \min Loss(X^{‘})​$</p>
+<p>用普通的梯度下降算法就可以找到$ X^* $</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/gd1.png"></p>
+<p>其中：</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/qd.png" alt="1553672689581"></p>
+<p>为了满足$d(X^{0}, X^{‘}) \leq \epsilon​$， 只需要在轮更新中判断$x^t​$是否满足条件，如果不满足就对$x^t​$进行修正。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/gd2.png" alt="1553672843301"></p>
+<p>修正就是我们在所有满足条件的$x$中找到一个离$x^t$最近的$x$来替换$x^t$</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/fix.png"></p>
+<p>让我们看两个例子：</p>
+<p>$ x^0 ​$表示图片是高维空间中的一点(向量)， 假设$x^0​$是二维向量，那么以$x^0​$为圆心， 以$ \epsilon ​$为半径构成的圆，圆内所有的点都为满足条件的点。$x^t​$每更新一次都判断它在不在圆内，如果不在圆内$x^t​$就用满足条件且与$x^t​$距离最近的点替代。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/ex-l2.png" alt="1553673362800"></p>
+<p>对于$L- \infty​$也同理，注意构成的图形是方形。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/ex-l22.png" alt="1553673801173"></p>
+<h3 id="Example"><a href="#Example" class="headerlink" title="Example"></a>Example</h3><p>左边是原始图片，神经网络识别结果是小虎斑猫，右边是攻击后的图片，神经网络的识别结果是海星。肉眼根本看不出两张图片的差别(反正我看不出来)。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/example.png" alt="1553674919827"></p>
+<p> <strong>我们把两张图片相减并扩大50倍，得到噪音</strong></p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/noise.png" alt="1553675178719"></p>
+<p>上面噪音是我们通过训练得出的，如果我们随机加一些噪音，会影响神经网络的预测吗？</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/random_noise.png" alt="1553675324042"></p>
+<p>实验表明随机的噪音确实会对神经网络的预测产生影响，但是这种影响是相对较小的，虽然图片的变化很大但是神经网络仍然可以知道照片中是猫而不是海星。</p>
+<h3 id="What-Happened？"><a href="#What-Happened？" class="headerlink" title="What Happened？"></a>What Happened？</h3><p>为什么通过计算得出的小噪音要比随机产生的大噪音更有效呢？</p>
+<p>我们刚才说过$x^0$是高维空间中一点，对$x^0 $进行修改可以看成把$ x^0 $朝某个方向移动一定距离。而随机也是一种方向，$x^0$ 在随机这个方向移动对预测的影响会非常小。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/wh1.png" alt="1553675636120"></p>
+<p>而我们的计算正是找到一个特殊的方向，$x^0$仅需要在这个点移动一点点距离就可以改变神经网络的预测。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/wh2.png" alt="1553676044937"></p>
+<h3 id="Attack-Approaches"><a href="#Attack-Approaches" class="headerlink" title="Attack Approaches"></a>Attack Approaches</h3><p>虽然不同的Attack方法会让人眼花缭乱，但是不同一般是衡量距离的方法不同或是不同的optimization方法来达到constraints。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/approach.png" alt="1553994846534"></p>
+<p>以下是攻击的常见方法</p>
+<p>• FGSM (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1412.6572">https://arxiv.org/abs/1412.6572</a>)</p>
+<p>•Basic iterative method (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1607.02533">https://arxiv.org/abs/1607.02533</a>)</p>
+<p>•L-BFGS (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1312.6199">https://arxiv.org/abs/1312.6199</a>)</p>
+<p>•Deepfool (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1511.04599">https://arxiv.org/abs/1511.04599</a>)</p>
+<p>•JSMA (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1511.07528">https://arxiv.org/abs/1511.07528</a>)</p>
+<p>•C&amp;W (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1608.04644">https://arxiv.org/abs/1608.04644</a>)</p>
+<p>•Elastic net attack (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1709.04114">https://arxiv.org/abs/1709.04114</a>)</p>
+<p>•Spatially Transformed (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1801.02612">https://arxiv.org/abs/1801.02612</a>)</p>
+<p>•One Pixel Attack (<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1710.08864">https://arxiv.org/abs/1710.08864</a>)</p>
+<p>…..</p>
+<h3 id="Fast-Gradient-Sign-Method-FGSM"><a href="#Fast-Gradient-Sign-Method-FGSM" class="headerlink" title="Fast Gradient Sign Method (FGSM)"></a>Fast Gradient Sign Method (FGSM)</h3><p>这里只介绍FGSM方法</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/fgsm.png" alt="1553995012043"></p>
+<p>FGSM只是把图片加上正负$\epsilon$，并且只Update一次</p>
+<p>假设$x^0$是二维坐标，通常的梯度下降算法会将$x^0$移动到$x^1$, 但是FGSM每一次都是在两个维度上加减$\epsilon$, 是加还是减看的是gradient的方向，如果gradient偏向左下角，那么我们就要朝着右上角更新$ x^0 $，所以就要向上移动$\epsilon$向右移动$\epsilon$，$x^*$就会跑到右上角等等。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/fgsm1.png" alt="1554000213871"></p>
+<h3 id="White-Box-v-s-Black-Box"><a href="#White-Box-v-s-Black-Box" class="headerlink" title="White Box v.s. Black Box"></a>White Box v.s. Black Box</h3><p>在这些攻击中我们都是知道并且固定住神经网络参数$ \theta $, 找到一张图片$ x’ $, 这就是所谓的白盒攻击，所以是不是我把网络参数保护好就可以免于攻击呢？Sorry，不能。因为还存在黑盒攻击。</p>
+<h3 id="Black-Box-Attack"><a href="#Black-Box-Attack" class="headerlink" title="Black Box Attack"></a>Black Box Attack</h3><p>如果你想攻击模型A，没有它的参数但是有它的训练数据，你只需要用这个训练数据自己训练一个模型B，用模型B生成的攻击样本来攻击模型A有非常大的可能性会攻击成功。</p>
+<p>如果你没有模型A的参数也没有模型A的训练数据，你还可以用模型A来生成数据集，同样可以达到很好的攻击效果。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/ba.png" alt="1554448560927"></p>
+<h3 id="Universal-Adversarial-Attack"><a href="#Universal-Adversarial-Attack" class="headerlink" title="Universal Adversarial Attack"></a>Universal Adversarial Attack</h3><p>找出一个通用噪音让所有的图片预测结果都出错。<a target="_blank" rel="noopener" href="https://arxiv.org/abs/1610.08401">论文地址</a></p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/uaa.png" alt="1554375121037"></p>
+<h3 id="Adversarial-Reprogramming"><a href="#Adversarial-Reprogramming" class="headerlink" title="Adversarial Reprogramming"></a>Adversarial Reprogramming</h3><p>通过在图片中加如特殊噪音，模型会帮你完成其他工作，你可以用一些特殊噪音让ImageNet分类器帮你数图片中小方格的个数，非常神奇。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/are.png" alt="1554375535264"></p>
+<h3 id="Attack-in-the-Real-World"><a href="#Attack-in-the-Real-World" class="headerlink" title="Attack in the Real World"></a>Attack in the Real World</h3><p>主要是对抗攻击在现实生活中的应用，感兴趣可以看一下对应的论文。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/real1.png" alt="1554375743629"></p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/real2.png" alt="1554375784090"></p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/real3.png" alt="1554375806961"></p>
+<h3 id="Beyond-Images"><a href="#Beyond-Images" class="headerlink" title="Beyond Images"></a>Beyond Images</h3><p>对抗攻击不仅存在于图像分类中，你还可以攻击音频和文本。</p>
+<ul>
+<li>音频<ul>
+<li><a target="_blank" rel="noopener" href="https://nicholas.carlini.com/code/audio_adversarial_examples/">https://nicholas.carlini.com/code/audio_adversarial_examples/</a></li>
+<li><a target="_blank" rel="noopener" href="https://adversarial-attacks.net/">https://adversarial-attacks.net</a></li>
+</ul>
+</li>
+<li>文本<ul>
+<li><a target="_blank" rel="noopener" href="https://arxiv.org/pdf/1707.07328.pdf">https://arxiv.org/pdf/1707.07328.pdf</a></li>
+</ul>
+</li>
+</ul>
+<h2 id="Defense"><a href="#Defense" class="headerlink" title="Defense"></a>Defense</h2><p>针对对抗攻击的防御主要分为两种一种是Passive Defense，另一种是Proactive Defense，首先介绍Passive Defense。</p>
+<h3 id="Passive-Defense"><a href="#Passive-Defense" class="headerlink" title="Passive Defense"></a>Passive Defense</h3><p>Passive Defense只是能够找出对抗样本，并不更改模型的参数，主体思想就是我们在把图片送到之前先把图片做一下处理(平滑化等)，这样可以减少噪音带来的影响。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/pd.png" alt="1554376280200"></p>
+<p>下面是两种具体的应用。</p>
+<h4 id="Feature-Squeeze"><a href="#Feature-Squeeze" class="headerlink" title="Feature Squeeze"></a>Feature Squeeze</h4><p>Squeezer指的就是前面提到的处理，如果三个预测结果差距很大就意味着图片受到攻击。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/fq.png" alt="1554376395660"></p>
+<h4 id="Randomization-at-Inference-Phase"><a href="#Randomization-at-Inference-Phase" class="headerlink" title="Randomization at Inference Phase"></a>Randomization at Inference Phase</h4><p>更改输入图片的尺寸然后做一下随机的Padding再放入神经网络进行预测。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/rip.png" alt="1554376701360"></p>
+<h3 id="Proactive-Defense"><a href="#Proactive-Defense" class="headerlink" title="Proactive Defense"></a>Proactive Defense</h3><p>另一种防御方法是Proactive Defense，这种防御的主体思想是用某个算法A把对抗样本找出来，单独生成一个训练集把你的模型再训练一遍，这种防御方法存在很多问题比如你的这种防御只针对算法A，别人用算法B还是可以攻击你的网络。</p>
+<p><img src="https://raw.githubusercontent.com/ETCartman/ML-Course-Notes/master/images/Adversarial%20Attack/pp.png" alt="1554377017967"></p>
+<h2 id="Summary-and-outlook"><a href="#Summary-and-outlook" class="headerlink" title="Summary and outlook"></a>Summary and outlook</h2><p>我们主要学习了如何生成对抗样本和如何防御，简单来说生成就是固定住网络参数$ \theta $利用反向传播算法求出一个噪音，让加了噪音的图片被识别错误或是识别成某一个固定的类别，同时也要控制噪音的大小，太大就会被发现，而防御相对来说较为困难一种方法就是从图片入手想要通过对图片进行平滑处理来减小噪音的影响或是对比进行不同处理的图片的预测结果如果他们差距过大就说明图片收到了攻击，另一种方法就是找到所有的对抗样本并使用对抗样本重新训练网络。其实仔细想想不管是哪一种防御方法都不见得有效就算是把图片做了特殊处理，我也是有可能通过白盒或是黑盒攻击找到对抗样本的，所以防御这块还是很棘手的。</p>
+<h2 id="Next-Step"><a href="#Next-Step" class="headerlink" title="Next Step"></a>Next Step</h2><p>推荐教程：</p>
+<p><a target="_blank" rel="noopener" href="https://adversarial-ml-tutorial.org/">Adversarial Robustness - Theory and Practice</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Adversarial-Attack/" rel="tag"># Adversarial Attack</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/02/05/Deep%20Learning/Natural%20Language%20Processing/%E5%9B%BE%E8%A7%A3Transformer/" rel="prev" title="图解Transformer">
+      <i class="fa fa-chevron-left"></i> 图解Transformer
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/04/05/Machine%20Learning/Adversarial-Attack/" rel="next" title="深度学习中的对抗攻击(Adversarial Attack)">
+      深度学习中的对抗攻击(Adversarial Attack) <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Motivation"><span class="nav-number">1.</span> <span class="nav-text">Motivation</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Attack"><span class="nav-number">2.</span> <span class="nav-text">Attack</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#What-do-we-want-do%EF%BC%9F"><span class="nav-number">2.1.</span> <span class="nav-text">What do we want do？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Loss-function-for-Attack"><span class="nav-number">2.2.</span> <span class="nav-text">Loss function for Attack</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Constraint"><span class="nav-number">2.3.</span> <span class="nav-text">Constraint</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#How-to-attack"><span class="nav-number">2.4.</span> <span class="nav-text">How to attack?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Example"><span class="nav-number">2.5.</span> <span class="nav-text">Example</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#What-Happened%EF%BC%9F"><span class="nav-number">2.6.</span> <span class="nav-text">What Happened？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Attack-Approaches"><span class="nav-number">2.7.</span> <span class="nav-text">Attack Approaches</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Fast-Gradient-Sign-Method-FGSM"><span class="nav-number">2.8.</span> <span class="nav-text">Fast Gradient Sign Method (FGSM)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#White-Box-v-s-Black-Box"><span class="nav-number">2.9.</span> <span class="nav-text">White Box v.s. Black Box</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Black-Box-Attack"><span class="nav-number">2.10.</span> <span class="nav-text">Black Box Attack</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Universal-Adversarial-Attack"><span class="nav-number">2.11.</span> <span class="nav-text">Universal Adversarial Attack</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Adversarial-Reprogramming"><span class="nav-number">2.12.</span> <span class="nav-text">Adversarial Reprogramming</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Attack-in-the-Real-World"><span class="nav-number">2.13.</span> <span class="nav-text">Attack in the Real World</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Beyond-Images"><span class="nav-number">2.14.</span> <span class="nav-text">Beyond Images</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Defense"><span class="nav-number">3.</span> <span class="nav-text">Defense</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Passive-Defense"><span class="nav-number">3.1.</span> <span class="nav-text">Passive Defense</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Feature-Squeeze"><span class="nav-number">3.1.1.</span> <span class="nav-text">Feature Squeeze</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Randomization-at-Inference-Phase"><span class="nav-number">3.1.2.</span> <span class="nav-text">Randomization at Inference Phase</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Proactive-Defense"><span class="nav-number">3.2.</span> <span class="nav-text">Proactive Defense</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Summary-and-outlook"><span class="nav-number">4.</span> <span class="nav-text">Summary and outlook</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Next-Step"><span class="nav-number">5.</span> <span class="nav-text">Next Step</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">hanjunliu</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/etcartman" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;etcartman" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">hanjunliu</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
